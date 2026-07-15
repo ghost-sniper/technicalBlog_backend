@@ -1,0 +1,5 @@
+FROM rust:1.56.1 as builder
+LABEL maintainer="clayfs@163.com"
+WORKDIR $
+COPY . .
+RUN cargo build --release
