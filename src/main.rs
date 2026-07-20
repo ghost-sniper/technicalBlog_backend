@@ -3,6 +3,7 @@ use actix_web::{App, HttpServer, web};
 use crate::db::create_database_pool;
 pub mod db;
 pub mod handlers;
+pub mod models;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 	let db_pool = create_database_pool();
