@@ -8,10 +8,10 @@ pub struct Tag {
 }
 impl Tag {
 	pub fn new(id: i64, tag_name: String, status: i32) -> Self {
-		return Tag {
-			id: id,
-			tag_name: tag_name,
-			status: status,
-		};
+		Self {
+			id,
+			tag_name,
+			status,
+		}
 	}
 }
