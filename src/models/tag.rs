@@ -15,3 +15,8 @@ impl Tag {
 		}
 	}
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TagRequest {
+	pub tag_name: String,
+	pub status: i32,
+}

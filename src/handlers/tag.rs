@@ -2,7 +2,7 @@ use actix_web::{HttpResponse, web};
 use deadpool_postgres::Pool;
 use serde::Serialize;
 
-use crate::models::tag::Tag;
+use crate::models::tag::{Tag, TagRequest};
 #[derive(Serialize)]
 pub struct TagResponse {
 	tags: Vec<Tag>,
@@ -46,4 +46,29 @@ pub async fn get_all_tags(pool: web::Data<Pool>) -> HttpResponse {
 			HttpResponse::InternalServerError().finish()
 		}
 	};
+}
+
+pub async fn insert_tag(
+	pool: web::Data<Pool>,
+	request: web::Json<TagRequest>,
+) -> HttpResponse {
+	let client = match pool.get().await {
+		Ok(client) => client,
+		Err(e) => {
+			eprintln!("Failed to get Database connection: {}", e);
+			return HttpResponse::InternalServerError().finish();
+		}
+	};
+	let affected_rows = client
+		.execute(
+			"Insert into tag(tag_name,status) values($1,$2)",
+			&[&request.tag_name, &request.status],
+		)
+		.await
+		.expect("Failed to insert into tag");
+	if affected_rows == 1 {
+		HttpResponse::Ok().body("Tag inserted successfully")
+	} else {
+		HttpResponse::InternalServerError().body("Insert to tag failed")
+	}
 }
