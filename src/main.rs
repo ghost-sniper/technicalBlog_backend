@@ -2,9 +2,12 @@ use actix_cors::Cors;
 use actix_web::{App, HttpServer, http, web};
 
 use crate::db::create_database_pool;
+pub mod dao;
 pub mod db;
 pub mod handlers;
 pub mod models;
+pub mod services;
+pub mod utils;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 	let db_pool = create_database_pool();
