@@ -1,3 +1,4 @@
+pub mod sort;
 pub mod user;
 use thiserror::Error;
 #[derive(Debug, Error, Clone)]
