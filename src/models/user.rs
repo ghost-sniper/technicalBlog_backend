@@ -1,5 +1,6 @@
 use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
+use tokio_postgres::Row;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserVo {
 	pub id: Option<i64>,
@@ -19,49 +20,34 @@ pub struct UserVo {
 	pub access_token: Option<String>,
 	pub code: Option<String>,
 }
-impl UserVo {
-	pub fn new(
-		id: Option<i64>,
-		username: String,
-		phone_number: Option<String>,
-		email: Option<String>,
-		password: String,
-		gender: Option<i16>,
-		avatar: Option<String>,
-		user_level: Option<i16>,
-		introduction: Option<String>,
-		subscribe: Option<String>,
-		create_time: Option<DateTime<FixedOffset>>,
-		update_time: Option<DateTime<FixedOffset>>,
-		update_user: Option<String>,
-		is_boss: Option<bool>,
-		access_token: Option<String>,
-		code: Option<String>,
-	) -> Self {
-		Self {
-			id,
-			username,
-			phone_number,
-			email,
-			password,
-			gender,
-			avatar,
-			user_level,
-			introduction,
-			subscribe,
-			create_time,
-			update_time,
-			update_user,
-			is_boss,
-			access_token,
-			code,
-		}
-	}
-}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserLoginParams {
 	pub account: Option<String>,
 	pub password: Option<String>,
 	pub is_admin: Option<bool>,
+}
+
+impl TryFrom<&Row> for UserVo {
+	type Error = tokio_postgres::Error;
+	fn try_from(value: &Row) -> Result<Self, Self::Error> {
+		Ok(UserVo {
+			id: value.try_get("id")?,
+			username: value.try_get("username")?,
+			phone_number: value.try_get("phone_number")?,
+			email: value.try_get("email")?,
+			password: value.try_get("password")?,
+			gender: value.try_get("gender")?,
+			avatar: value.try_get("avator")?,
+			user_level: value.try_get("user_lv")?,
+			introduction: value.try_get("introduction")?,
+			subscribe: value.try_get("subscribe")?,
+			create_time: value.try_get("create_time")?,
+			update_time: value.try_get("update_time")?,
+			update_user: value.try_get("update_user")?,
+			is_boss: value.try_get("is_boss")?,
+			access_token: value.try_get("access_token")?,
+			code: value.try_get("code")?,
+		})
+	}
 }
