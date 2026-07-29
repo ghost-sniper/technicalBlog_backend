@@ -23,7 +23,7 @@ async fn main() -> std::io::Result<()> {
 			.configure(handlers::configure_app)
 			.app_data(web::Data::new(db_pool.clone()))
 	})
-	.bind(("127.0.0.1", 8080))?
+	.bind(("127.0.0.1", 8600))?
 	.run()
 	.await
 }

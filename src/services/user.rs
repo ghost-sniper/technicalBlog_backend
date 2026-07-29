@@ -1,18 +1,31 @@
 use crate::{
-	models::user::{UserLoginParams, UserVo},
-	services::{LoginError, LoginResult},
+	dao::{key_pair::get_private_key_by_public_key, user::query_user_by_email},
+	models::user::User,
+	utils::decrypt_e2ee,
 };
-
-const CRYPTO_KEY: &[u8; 32] = b"02294834837484739437366283472329";
-
-pub fn login_user(params: UserLoginParams) -> LoginResult<UserVo> {
-	let account = params.account.as_deref().unwrap_or("");
-	let password = params.password.as_deref().unwrap_or("");
-	let encrypted_password =
-		crate::utils::encrypt(password.as_bytes(), CRYPTO_KEY).unwrap();
-	if account.eq("34") {
-		eprintln!("Err")
-	};
-	encrypted_password.iter().for_each(|i| print!("{}", i));
-	Err(LoginError::WrongCredentials)
+use deadpool_postgres::Client;
+pub async fn login(
+	client: &Client,
+	email: &str,
+	public_key: &str,
+	password: &str,
+	aes_key: &str,
+	iv: &str,
+) -> anyhow::Result<User> {
+	let user = query_user_by_email(client, email)
+		.await
+		.expect("获取用户信息失败");
+	let private_key = get_private_key_by_public_key(client, public_key)
+		.await
+		.expect("获取私钥失败");
+	let result = decrypt_e2ee(aes_key, password, iv, &private_key.as_str())
+		.await
+		.expect("解密失败");
+	println!("解密后的密码：{}", result);
+	println!("查询返回的密码：{}", user.password);
+	if !user.password.eq(&result) {
+		return Err(anyhow::anyhow!("密码错误"));
+	} else {
+		Ok(user)
+	}
 }

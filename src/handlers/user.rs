@@ -1,19 +1,37 @@
 use actix_web::{HttpResponse, web};
+use deadpool_postgres::Pool;
 
-use crate::models::user::UserLoginParams;
+use crate::{models::user::UserLoginRequest, services::user::login};
 
 pub async fn register_user() {
 	todo!()
 }
 
-pub async fn login_user(params: web::Query<UserLoginParams>) -> HttpResponse {
-	if let None = params.account {
+pub async fn login_user(
+	pool: web::Data<Pool>,
+	params: web::Json<UserLoginRequest>,
+) -> HttpResponse {
+	println!("开始登陆操作");
+	if let None = params.username {
 		return HttpResponse::BadRequest().body("未传入账号");
 	};
 	if let None = params.password {
 		return HttpResponse::BadRequest().body("未提供密码");
 	};
-	HttpResponse::Ok().finish()
+	let client = pool.get().await.unwrap();
+	let params = params.into_inner();
+	println!("{:?}", params.username.as_ref());
+	let user = login(
+		&client,
+		params.username.expect("").as_str(),
+		params.public_key.expect("").as_str(),
+		params.password.expect("").as_str(),
+		params.aes_key.expect("").as_str(),
+		params.iv.expect("").as_str(),
+	)
+	.await
+	.unwrap();
+	return HttpResponse::Ok().json(user);
 }
 
 pub async fn token() {

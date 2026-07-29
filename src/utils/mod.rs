@@ -1,51 +1,42 @@
-use ring::{
-	aead::{AES_256_GCM, Aad, LessSafeKey, Nonce, UnboundKey},
-	error::Unspecified,
-	rand::{SecureRandom, SystemRandom},
+use aes::cipher::{
+	BlockDecryptMut, KeyIvInit, block_padding::Pkcs7, generic_array::GenericArray,
 };
+use base64::{Engine as _, engine::general_purpose};
+use cbc::Decryptor;
+use pkcs8::DecodePrivateKey;
+use rsa::{Oaep, RsaPrivateKey};
+use sha2::Sha256;
 
-pub fn encrypt(plain_text: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, Unspecified> {
-	let rng = SystemRandom::new();
-	//使用密钥初始化加密上下文
-	let unbound_key =
-		UnboundKey::new(&AES_256_GCM, key).expect("unboundKey初始化失败");
-	let key = LessSafeKey::new(unbound_key);
-	//生成一个12字节的随机Nonce（数字只使用1次）
-	// AES_GCM推荐使用12字节的Nonce
-	let mut nonce_bytes = [0u8; 12];
-	rng.fill(&mut nonce_bytes).unwrap();
-	let nonce = ring::aead::Nonce::assume_unique_for_key(nonce_bytes);
-	// 准备加密明文
-	let mut in_out = plain_text.to_vec();
+type Aes256CbcDec = Decryptor<aes::Aes256>;
 
-	//执行加密
-	key.seal_in_place_append_tag(nonce, Aad::empty(), &mut in_out)?;
-
-	let mut result = nonce_bytes.to_vec();
-	result.append(&mut in_out);
-	Ok(result)
-}
-
-pub fn decrypt(cipher_text: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, Unspecified> {
-	let (nonce_bytes, encrypted) = cipher_text.split_at(12);
-	let nonce = Nonce::assume_unique_for_key(nonce_bytes.try_into().unwrap());
-
-	let unbound_key =
-		UnboundKey::new(&AES_256_GCM, key).expect("unboundKey初始化失败");
-	let key = LessSafeKey::new(unbound_key);
-
-	let mut in_out = encrypted.to_vec();
-	let plain_text = key.open_in_place(nonce, Aad::empty(), &mut in_out)?;
-	Ok(plain_text.to_vec())
-}
-#[cfg(test)]
-mod tests {
-	#[test]
-	fn test_encrypt_decrypt() {
-		let key: [u8; 32] = *b"01234567890123456789012345678901";
-		let plain_text = b"Hello, World!";
-		let encrypted = super::encrypt(plain_text, &key).unwrap();
-		let decrypted = super::decrypt(&encrypted, &key).unwrap();
-		assert_eq!(plain_text, decrypted.as_slice());
-	}
+pub async fn decrypt_e2ee(
+	aes_key_b64: &str,
+	cipher_text_b64: &str,
+	iv_b64: &str,
+	private_key_pem: &str,
+) -> anyhow::Result<String> {
+	println!("BASE64解码");
+	let cipher_text = general_purpose::STANDARD.decode(cipher_text_b64)?;
+	let iv = general_purpose::STANDARD.decode(iv_b64)?;
+	let aes_key = general_purpose::STANDARD.decode(aes_key_b64)?;
+	println!("BASE64解码后AES_KEY长度:{}", aes_key.len());
+	println!("初始化私钥");
+	let private_key = RsaPrivateKey::from_pkcs8_pem(private_key_pem)?;
+	let decrypted_aes_key = private_key.decrypt(Oaep::new::<Sha256>(), &aes_key)?;
+	let dd = general_purpose::STANDARD.decode(&decrypted_aes_key)?;
+	println!("BASE64再解码后AES_KEY长度：{}", dd.len());
+	println!("创建原地解码空间");
+	let mut buf = cipher_text.clone();
+	// let pt_len = buf.len();
+	println!("初始化AES解密器");
+	// println!("解密后AES_KEY长度：{}", decrypted_aes_key.len());
+	println!("IV长度：{}", iv.len());
+	let key = GenericArray::from_slice(&dd);
+	let iv = GenericArray::from_slice(&iv);
+	println!("创建AES解密器");
+	let decryptor = Aes256CbcDec::new(key, iv);
+	println!("解密数据");
+	let plain_text = decryptor.decrypt_padded_mut::<Pkcs7>(&mut buf).unwrap();
+	println!("{}", String::from_utf8_lossy(&plain_text));
+	Ok(String::from_utf8_lossy(&plain_text).to_string())
 }

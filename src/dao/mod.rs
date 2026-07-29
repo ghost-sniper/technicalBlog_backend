@@ -1,3 +1,4 @@
+pub mod key_pair;
 pub mod session;
 pub mod sort;
 pub mod user;
