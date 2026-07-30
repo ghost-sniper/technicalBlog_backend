@@ -1,4 +1,7 @@
-use actix_web::{HttpResponse, web};
+use std::fmt::format;
+use std::mem::forget;
+use actix_identity::Identity;
+use actix_web::{web, HttpRequest, HttpResponse, HttpMessage};
 use deadpool_postgres::Pool;
 
 use crate::{models::user::UserLoginRequest, services::user::login};
@@ -10,6 +13,7 @@ pub async fn register_user() {
 pub async fn login_user(
 	pool: web::Data<Pool>,
 	params: web::Json<UserLoginRequest>,
+	request: HttpRequest,
 ) -> HttpResponse {
 	println!("开始登陆操作");
 	if let None = params.username {
@@ -31,19 +35,25 @@ pub async fn login_user(
 	)
 	.await
 	.unwrap();
-	return HttpResponse::Ok().json(user);
+	Identity::login(&request.extensions(), user.id.to_string()).expect("设置Session失败");
+	HttpResponse::Ok().json(user)
 }
 
-pub async fn token() {
-	todo!()
+
+pub async fn logout_user(identity: Identity) -> HttpResponse {
+	identity.logout();
+	HttpResponse::Ok().finish()
 }
 
-pub async fn logout_user() {
-	todo!()
-}
-
-pub async fn update_user() {
-	todo!()
+pub async fn update_user(identity: Option<Identity>) -> HttpResponse {
+	if let Some(id) = identity {
+		match id.id() {
+			Ok(id) => {HttpResponse::Ok().body(format!("Welcome, {}",id))}
+			Err(e)=> HttpResponse::Unauthorized().body(e.to_string())
+		}
+	}else {
+		HttpResponse::Unauthorized().finish()
+	}
 }
 
 pub async fn get_code() {
