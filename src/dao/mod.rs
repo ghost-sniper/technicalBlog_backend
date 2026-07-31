@@ -2,6 +2,8 @@ pub mod key_pair;
 pub mod session;
 pub mod sort;
 pub mod user;
+pub mod article;
+
 use thiserror::Error;
 #[derive(Debug, Error, Clone)]
 pub enum DatabaseError {

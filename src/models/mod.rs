@@ -4,3 +4,4 @@ pub mod session;
 pub mod sort;
 pub mod tag;
 pub mod user;
+pub mod article;

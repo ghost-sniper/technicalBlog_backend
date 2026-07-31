@@ -1,5 +1,7 @@
 pub mod sort;
 pub mod user;
+pub mod article;
+
 use thiserror::Error;
 #[derive(Debug, Error, Clone)]
 pub enum LoginError {
@@ -13,3 +15,12 @@ pub enum LoginError {
 	AdminAccountRequired,
 }
 pub type LoginResult<T> = Result<T, LoginError>;
+
+
+#[derive(Debug, Error, Clone)]
+pub enum ArticleError {
+	#[error("未找到文章")]
+	ArticleNotFound,
+}
+
+pub type ArticleResult<T> = Result<T, ArticleError>;
