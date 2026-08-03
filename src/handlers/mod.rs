@@ -1,4 +1,3 @@
-use actix_identity::IdentityMiddleware;
 use actix_web::web;
 use thiserror::Error;
 
@@ -9,6 +8,8 @@ pub mod key_pair;
 pub mod sort;
 pub mod tag;
 pub mod user;
+pub mod article;
+
 #[derive(Error, Debug, Clone)]
 pub enum LoginError {
 	#[error("未传入账号")]
@@ -26,6 +27,7 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
 		.route("/webInfo/listLabel", web::get().to(sort::list_label))
 		.route("/publicKey", web::get().to(key_pair::get_public_key))
 		.route("/login", web::post().to(user::login_user))
-		.route("/logout", web::post().to(logout_user));
+		.route("/logout", web::post().to(logout_user))
+		.route("/article/{id}",web::get().to(article::get_article));
 	cfg.service(routes);
 }

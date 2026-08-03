@@ -24,7 +24,7 @@ pub async fn login(
 	println!("解密后的密码：{}", result);
 	println!("查询返回的密码：{}", user.password);
 	if !user.password.eq(&result) {
-		return Err(anyhow::anyhow!("密码错误"));
+		Err(anyhow::anyhow!("密码错误"))
 	} else {
 		Ok(user)
 	}

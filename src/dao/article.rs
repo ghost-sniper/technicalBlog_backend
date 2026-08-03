@@ -24,7 +24,8 @@ pub async fn get_article_by_id(client: &Client, id: i32) -> Option<Article> {
 	create_time,
 	update_time,
 	update_by,
-	deleted
+	deleted,
+	prospectus
 from
 	poetize.article
 where
@@ -45,4 +46,40 @@ pub async fn insert_article(client: &Client, article: &Article) -> Option<u64> {
 		.await
 		.unwrap();
 	Some(result)
+}
+
+pub async fn get_all_articles(client: &Client) -> Vec<Article> {
+	let result = client
+		.query(
+			"select
+	id,
+	user_id,
+	sort_id,
+	label_id,
+	article_cover,
+	article_title,
+	article_content,
+	video_url,
+	view_count,
+	like_count,
+	view_type,
+	view_value,
+	tips,
+	recommend_status,
+	comment_status,
+	create_time,
+	update_time,
+	update_by,
+	deleted,
+	prospectus
+from
+	poetize.article" ,
+			&[],
+		)
+		.await
+		.unwrap();
+	result
+		.iter()
+		.map(|row| Article::try_from(row).unwrap())
+		.collect()
 }

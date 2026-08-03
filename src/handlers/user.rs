@@ -1,7 +1,5 @@
-use std::fmt::format;
-use std::mem::forget;
 use actix_identity::Identity;
-use actix_web::{web, HttpRequest, HttpResponse, HttpMessage};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, web};
 use deadpool_postgres::Pool;
 
 use crate::{models::user::UserLoginRequest, services::user::login};

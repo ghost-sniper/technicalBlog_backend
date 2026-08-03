@@ -1,4 +1,4 @@
-use tokio_postgres::Client;
+use deadpool_postgres::Client;
 
 use crate::models::key_pair::RsaKeyPair;
 
