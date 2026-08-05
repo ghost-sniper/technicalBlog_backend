@@ -13,7 +13,6 @@ pub async fn login_user(
 	params: web::Json<UserLoginRequest>,
 	request: HttpRequest,
 ) -> HttpResponse {
-	println!("开始登陆操作");
 	if let None = params.username {
 		return HttpResponse::BadRequest().body("未传入账号");
 	};
@@ -22,7 +21,6 @@ pub async fn login_user(
 	};
 	let client = pool.get().await.unwrap();
 	let params = params.into_inner();
-	println!("{:?}", params.username.as_ref());
 	let user = login(
 		&client,
 		params.username.expect("").as_str(),

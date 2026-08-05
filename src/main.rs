@@ -9,6 +9,7 @@ use chrono::Local;
 use env_logger::Env;
 use log::info;
 use std::io::Write;
+use dotenv::dotenv;
 pub mod dao;
 pub mod db;
 pub mod handlers;
@@ -18,7 +19,13 @@ pub mod utils;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 	init_logger();
-	let db_pool = create_database_pool();
+	dotenv().ok();
+	let database_host = std::env::var("DATABASE_HOST").unwrap_or("127.0.0.1".to_string());
+	let database_port = std::env::var("DATABASE_PORT").unwrap_or("5432".to_string());
+	let database_user = std::env::var("DATABASE_USER").unwrap_or("zion_app".to_string());
+	let database_name = std::env::var("DATABASE_NAME").unwrap_or("zion".to_string());
+	let database_user_passwd = std::env::var("DATABASE_USER_PASSWORD").unwrap_or("".to_string());
+	let db_pool = create_database_pool(database_host,database_port,database_name,database_user,database_user_passwd);
 	let secret_key = Key::generate();
 	HttpServer::new(move || {
 		let store = CookieSessionStore::default();
@@ -35,7 +42,7 @@ async fn main() -> std::io::Result<()> {
 			.configure(handlers::configure_app)
 			.app_data(web::Data::new(db_pool.clone()))
 	})
-	.bind(("127.0.0.1", 8600))?
+	.bind(("0.0.0.0", 8080))?
 	.run()
 	.await
 }
@@ -44,26 +51,12 @@ fn init_logger() {
 	env_logger::Builder::from_env(env)
 		.format(|buf, record| {
 			let level_color = match record.level() {
-				// log::Level::Error => {
-				// 	Color::Rgb(RgbColor::try_from((255, 0, 0)).unwrap())
-				// }
-				// log::Level::Warn => {
-				// 	Color::Rgb(RgbColor::try_from((255, 255, 0)).unwrap())
-				// }
-				// log::Level::Info => {
-				// 	Color::Rgb(RgbColor::try_from((0, 255, 0)).unwrap())
-				// }
-				// log::Level::Debug | log::Level::Trace => {
-				// 	Color::Rgb(RgbColor::try_from((0, 255, 255)).unwrap())
-				// }
 				log::Level::Error => "\x1b[31mERROR\x1b[0m", // 红色
 				log::Level::Warn => "\x1b[33mWARN \x1b[0m", // 黄色
 				log::Level::Info => "\x1b[32mINFO \x1b[0m", // 绿色
 				log::Level::Debug => "\x1b[34mDEBUG\x1b[0m", // 蓝色
 				log::Level::Trace => "\x1b[90mTRACE\x1b[0m", // 灰色
 			};
-			// let level_style =
-			// 	Style::new().fg_color(Some(level_color).into()).bold();
 			writeln!(
 				buf,
 				"{} {} [{}] {}",

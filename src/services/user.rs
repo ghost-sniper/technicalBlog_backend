@@ -21,8 +21,6 @@ pub async fn login(
 	let result = decrypt_e2ee(aes_key, password, iv, &private_key.as_str())
 		.await
 		.expect("解密失败");
-	println!("解密后的密码：{}", result);
-	println!("查询返回的密码：{}", user.password);
 	if !user.password.eq(&result) {
 		Err(anyhow::anyhow!("密码错误"))
 	} else {

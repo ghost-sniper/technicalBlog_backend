@@ -12,11 +12,11 @@ env:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
     - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --release
     - name: Run tests
       run: cargo test --verbose
+    - name: Docker Build
+      run: docker build -f ./DockerFile -t blog:${{ github.sha }} .
