@@ -3,6 +3,8 @@ pub mod session;
 pub mod sort;
 pub mod user;
 pub mod article;
+pub mod tag;
+pub mod category;
 
 use thiserror::Error;
 #[derive(Debug, Error, Clone)]

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tokio_postgres::Row;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Tag {
@@ -15,6 +16,17 @@ impl Tag {
 		}
 	}
 }
+impl TryFrom<&Row> for Tag {
+	type Error = tokio_postgres::Error;
+	fn try_from(row: &Row) -> Result<Self, Self::Error> {
+		Ok(Tag{
+			id: row.try_get("id")?,
+			tag_name: row.try_get("tag_name")?,
+			status: row.try_get("status")?,
+		})
+	}
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TagRequest {
 	pub tag_name: String,

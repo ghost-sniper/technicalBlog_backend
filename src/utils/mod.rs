@@ -15,11 +15,15 @@ pub async fn decrypt_e2ee(
 	iv_b64: &str,
 	private_key_pem: &str,
 ) -> anyhow::Result<String> {
+	// BASE64解码
 	let cipher_text = general_purpose::STANDARD.decode(cipher_text_b64)?;
 	let iv = general_purpose::STANDARD.decode(iv_b64)?;
 	let aes_key = general_purpose::STANDARD.decode(aes_key_b64)?;
+	// 初始化RSA私钥
 	let private_key = RsaPrivateKey::from_pkcs8_pem(private_key_pem)?;
+	// 使用RSA私钥解密AES密钥
 	let decrypted_aes_key = private_key.decrypt(Oaep::new::<Sha256>(), &aes_key)?;
+	// BASE64解码AES_KEY
 	let dd = general_purpose::STANDARD.decode(&decrypted_aes_key)?;
 	let mut buf = cipher_text.clone();
 	let key = GenericArray::from_slice(&dd);

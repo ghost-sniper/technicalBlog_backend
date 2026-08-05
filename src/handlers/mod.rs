@@ -1,4 +1,6 @@
+use actix_web::error::ErrorInternalServerError;
 use actix_web::web;
+use deadpool_postgres::Pool;
 use thiserror::Error;
 
 use crate::handlers::user::logout_user;
@@ -30,4 +32,11 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
 		.route("/logout", web::post().to(logout_user))
 		.route("/article/{id}",web::get().to(article::get_article));
 	cfg.service(routes);
+}
+
+async fn get_db_client(pool: web::Data<Pool>) -> Result<deadpool_postgres::Client, actix_web::Error>  {
+	pool.get().await.map_err(|e| {
+		eprintln!("Failed to get database connection: {}", e);
+		ErrorInternalServerError("Database connection error")
+	})
 }
