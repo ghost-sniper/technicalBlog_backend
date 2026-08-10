@@ -1,8 +1,9 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
+use blog::TryFromRow;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, TryFromRow)]
 pub struct Category {
 	pub id: i64,
 	pub name: String,
@@ -28,21 +29,5 @@ impl Category {
 			create_at,
 			update_at,
 		}
-	}
-}
-
-
-impl TryFrom<&Row> for Category {
-	type Error = tokio_postgres::Error;
-
-	fn try_from(row: &Row) -> Result<Self, Self::Error> {
-		Ok(Category{
-			id: row.try_get("id")?,
-			name: row.try_get("name")?,
-			description: row.try_get("description")?,
-			is_deleted: row.try_get("is_deleted")?,
-			create_at: row.try_get("create_at")?,
-			update_at: row.try_get("update_at")?,
-		})
 	}
 }

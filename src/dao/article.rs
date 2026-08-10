@@ -1,4 +1,4 @@
-use crate::models::article::Article;
+use crate::models::article::{Article, ShortArticle};
 use deadpool_postgres::Client;
 use std::option::Option;
 
@@ -73,7 +73,7 @@ pub async fn get_all_articles(client: &Client) -> Vec<Article> {
 	deleted,
 	prospectus
 from
-	poetize.article" ,
+	poetize.article",
 			&[],
 		)
 		.await
@@ -81,5 +81,19 @@ from
 	result
 		.iter()
 		.map(|row| Article::try_from(row).unwrap())
+		.collect()
+}
+
+pub async fn get_articles_short_info(client: &Client) -> Vec<ShortArticle> {
+	let result = client
+		.query(
+			"SELECT id, article_title,update_time,prospectus from poetize.article",
+			&[],
+		)
+		.await
+		.unwrap();
+	result
+		.iter()
+		.map(|row| ShortArticle::try_from(row).unwrap())
 		.collect()
 }
