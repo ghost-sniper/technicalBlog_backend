@@ -1,11 +1,11 @@
-use crate::models::article::{Article, ShortArticle};
+use crate::{models::article::{Article, ShortArticle}, select_row, select_rows};
 use deadpool_postgres::Client;
 use std::option::Option;
 
 pub async fn get_article_by_id(client: &Client, id: i32) -> Option<Article> {
-	let result = client
-		.query_one(
-			"select
+	select_row!(
+		client,
+		"select
 	id,
 	user_id,
 	sort_id,
@@ -30,11 +30,9 @@ from
 	poetize.article
 where
 	id = $1",
-			&[&id],
-		)
-		.await
-		.unwrap();
-	Article::try_from(&result).ok()
+		&[&id],
+		Article
+	)
 }
 
 pub async fn insert_article(client: &Client, article: &Article) -> Option<u64> {
@@ -49,9 +47,9 @@ pub async fn insert_article(client: &Client, article: &Article) -> Option<u64> {
 }
 
 pub async fn get_all_articles(client: &Client) -> Vec<Article> {
-	let result = client
-		.query(
-			"select
+	select_rows!(
+		client,
+		"select
 	id,
 	user_id,
 	sort_id,
@@ -74,26 +72,16 @@ pub async fn get_all_articles(client: &Client) -> Vec<Article> {
 	prospectus
 from
 	poetize.article",
-			&[],
-		)
-		.await
-		.unwrap();
-	result
-		.iter()
-		.map(|row| Article::try_from(row).unwrap())
-		.collect()
+		&[],
+		Article
+	)
 }
 
 pub async fn get_articles_short_info(client: &Client) -> Vec<ShortArticle> {
-	let result = client
-		.query(
-			"SELECT id, article_title,update_time,prospectus from poetize.article",
-			&[],
-		)
-		.await
-		.unwrap();
-	result
-		.iter()
-		.map(|row| ShortArticle::try_from(row).unwrap())
-		.collect()
+	select_rows!(
+		client,
+		"SELECT id, article_title,update_time,prospectus from poetize.article",
+		&[],
+		ShortArticle
+	)
 }
