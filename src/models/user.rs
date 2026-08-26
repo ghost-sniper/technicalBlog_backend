@@ -36,6 +36,7 @@ pub struct UserLoginRequest {
 pub struct User {
 	pub id: i32,
 	pub username: String,
+	#[serde(skip_serializing)]
 	pub password: String,
 	pub phone_number: Option<String>,
 	pub email: Option<String>,
