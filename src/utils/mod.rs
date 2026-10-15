@@ -29,7 +29,8 @@ pub async fn decrypt_e2ee(
 	let key = GenericArray::from_slice(&dd);
 	let iv = GenericArray::from_slice(&iv);
 	let decryptor = Aes256CbcDec::new(key, iv);
-	let plain_text = decryptor.decrypt_padded_mut::<Pkcs7>(&mut buf).unwrap();
-	println!("{}", String::from_utf8_lossy(&plain_text));
-	Ok(String::from_utf8_lossy(&plain_text).to_string())
+	let plain_text = decryptor
+		.decrypt_padded_mut::<Pkcs7>(&mut buf)
+		.map_err(|_| anyhow::anyhow!("解密失败"))?;
+	Ok(String::from_utf8_lossy(plain_text).to_string())
 }

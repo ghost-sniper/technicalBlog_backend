@@ -13,26 +13,42 @@ pub async fn login_user(
 	params: web::Json<UserLoginRequest>,
 	request: HttpRequest,
 ) -> HttpResponse {
-	if let None = params.username {
+	let Some(username) = params.username.clone() else {
 		return HttpResponse::BadRequest().body("未传入账号");
 	};
-	if let None = params.password {
+	let Some(password) = params.password.clone() else {
 		return HttpResponse::BadRequest().body("未提供密码");
 	};
-	let client = pool.get().await.unwrap();
-	let params = params.into_inner();
-	let user = login(
-		&client,
-		params.username.expect("").as_str(),
-		params.public_key.expect("").as_str(),
-		params.password.expect("").as_str(),
-		params.aes_key.expect("").as_str(),
-		params.iv.expect("").as_str(),
-	)
-	.await
-	.unwrap();
-	Identity::login(&request.extensions(), user.id.to_string()).expect("设置Session失败");
-	HttpResponse::Ok().json(user)
+	let Some(public_key) = params.public_key.clone() else {
+		return HttpResponse::BadRequest().body("未提供公钥");
+	};
+	let Some(aes_key) = params.aes_key.clone() else {
+		return HttpResponse::BadRequest().body("未提供密钥");
+	};
+	let Some(iv) = params.iv.clone() else {
+		return HttpResponse::BadRequest().body("未提供初始化向量");
+	};
+	let client = match pool.get().await {
+		Ok(client) => client,
+		Err(e) => {
+			log::error!("获取数据库连接失败: {e}");
+			return HttpResponse::InternalServerError().finish();
+		}
+	};
+	let user = match login(&client, &username, &public_key, &password, &aes_key, &iv).await {
+		Ok(user) => user,
+		Err(e) => {
+			log::warn!("登录失败: {e}");
+			return HttpResponse::Unauthorized().body("账号或密码错误");
+		}
+	};
+	match Identity::login(&request.extensions(), user.id.to_string()) {
+		Ok(_) => HttpResponse::Ok().json(user),
+		Err(e) => {
+			log::error!("设置Session失败: {e}");
+			HttpResponse::InternalServerError().finish()
+		}
+	}
 }
 
 

@@ -31,6 +31,7 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
 		.route("/publicKey", web::get().to(key_pair::get_public_key))
 		.route("/login", web::post().to(user::login_user))
 		.route("/logout", web::post().to(logout_user))
+		.route("/user/me", web::get().to(user::update_user))
 			.route("/article/{id}",web::get().to(article::get_article))
 		.route("/list/article", web::get().to(article::get_all_short_article));
 	cfg.service(routes);

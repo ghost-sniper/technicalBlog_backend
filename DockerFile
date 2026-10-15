@@ -5,6 +5,10 @@ COPY . .
 RUN cargo build --release
 
 FROM debian:bookworm-slim
+WORKDIR /app
+ENV LOG_DIR=/app/logs
+RUN mkdir -p /app/logs
 COPY --from=builder /app/target/release/blog /usr/local/bin/blog
+VOLUME ["/app/logs"]
 
-CMD ["blog"]
+CMD ["sh", "-lc", "mkdir -p \"$LOG_DIR\" && exec blog"]
