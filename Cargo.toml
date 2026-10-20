@@ -10,16 +10,15 @@ proc-macro = true
 actix-cors = "0.7.1"
 actix-web = "4.0.0"
 aes = "0.8"
-pkcs8 = "0.10"
+aws-lc-rs = { version = "1.18.2", features = ["prebuilt-nasm"] }
+pkcs8 = { version = "0.10", features = ["pem"] }
 anyhow = "1.0.104"
 base64 = "0.23"
 cbc = "0.1"
 chrono = { version = "0.4.45", features = ["serde"] }
 deadpool-postgres = "0.14.1"
-rsa = "0.9"
 serde = {version = "1.0.228",features=["derive"]}
 serde_json = "1.0.150"
-sha2 = "0.10"
 thiserror = "2.0.19"
 tokio-postgres = {version = "0.7.18", features = ["with-chrono-0_4","with-serde_json-1"]}
 actix-session = { version = "0.11.0", features = ["redis-session"] }

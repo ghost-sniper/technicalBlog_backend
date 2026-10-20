@@ -9,22 +9,19 @@ pub async fn get_public_key(conn: &Client) -> Option<String> {
 		Err(err) => {
 			log_db_error(sql, &err);
 			None
-		},
+		}
 	}
 }
 
 pub async fn get_private_key_by_public_key(
 	conn: &Client,
 	public_key: &str,
-) -> Option<String> {
+) -> Result<Option<String>, tokio_postgres::Error> {
 	let sql = "SELECT private_key FROM poetize.key_pair WHERE public_key = $1";
-	match conn.query_one(sql, &[&public_key]).await {
-		Ok(row) => row.try_get("private_key").ok(),
-		Err(err) => {
-			log_db_error(sql, &err);
-			None
-		},
-	}
+	let row = conn.query_opt(sql, &[&public_key]).await?;
+	row.as_ref()
+		.map(|row| row.try_get("private_key"))
+		.transpose()
 }
 
 pub async fn get_key_pair(conn: &Client) -> Option<Vec<RsaKeyPair>> {
@@ -38,6 +35,6 @@ pub async fn get_key_pair(conn: &Client) -> Option<Vec<RsaKeyPair>> {
 		Err(err) => {
 			log_db_error(sql, &err);
 			None
-		},
+		}
 	}
 }
