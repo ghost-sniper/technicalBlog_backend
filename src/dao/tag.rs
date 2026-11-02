@@ -2,13 +2,13 @@ use crate::{models::tag::Tag, select_row, select_rows};
 use deadpool_postgres::Client;
 
 pub async fn query_all_tags(client: &Client) -> Vec<Tag> {
-	select_rows!(client, "SELECT * FROM poetize.tag", &[], Tag)
+	select_rows!(client, "SELECT * FROM public.tag", &[], Tag)
 }
 
 pub async fn insert_tag(client: &Client, tag_name: &str, status: i32) -> u64 {
 	client
 		.execute(
-			"Insert into poetize.tag(tag_name,status) Values($1,$2)",
+			"Insert into public.tag(tag_name,status) Values($1,$2)",
 			&[&tag_name, &status],
 		)
 		.await
@@ -17,7 +17,7 @@ pub async fn insert_tag(client: &Client, tag_name: &str, status: i32) -> u64 {
 
 pub async fn delete_tag_by_id(client: &Client, id: i64) -> u64 {
 	client
-		.execute("Delete from poetize.tag Where id = $1", &[&id])
+		.execute("Delete from public.tag Where id = $1", &[&id])
 		.await
 		.expect("删除标签SQL执行失败")
 }
@@ -30,7 +30,7 @@ pub async fn update_tag_by_id(
 ) -> u64 {
 	client
 		.execute(
-			"UPDATE poetize.tag SET tag_name = $1 , status = $2 WHERE id = $3",
+			"UPDATE public.tag SET tag_name = $1 , status = $2 WHERE id = $3",
 			&[&tag_name, &status, &id],
 		)
 		.await
@@ -40,7 +40,7 @@ pub async fn update_tag_by_id(
 pub async fn query_tag_by_id(client: &Client, id: i64) -> Option<Tag> {
 	select_row!(
 		client,
-		"SELECT id, tag_name, status FROM poetize.tag Where id = $1",
+		"SELECT id, tag_name, status FROM public.tag Where id = $1",
 		&[&id],
 		Tag
 	)

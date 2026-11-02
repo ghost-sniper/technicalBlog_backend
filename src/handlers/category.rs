@@ -12,9 +12,12 @@ pub struct CategoriesResponse {
 	count: usize,
 }
 pub async fn get_all_categories(pool: web::Data<Pool>) -> HttpResponse {
-	let client = get_db_client(pool)
-		.await
-		.expect("Failed to get database client");
+	let client = match get_db_client(pool).await {
+		Ok(client) => client,
+		Err(_) => {
+			return HttpResponse::InternalServerError().body("分类服务暂时不可用");
+		}
+	};
 
 	let result = get_category_list(&client).await;
 	match result {

@@ -44,9 +44,13 @@ async fn main() -> std::io::Result<()> {
 	let cookie_secure = std::env::var("COOKIE_SECURE")
 		.map(|v| v == "true")
 		.unwrap_or(false);
+	let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_owned())
+		.parse::<u16>().map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "PORT must be a valid TCP port"))?;
+	info!("Starting HTTP server on port {port}");
 	HttpServer::new(move || {
 		let cors = Cors::default()
 			.allowed_origin("http://localhost:3000")
+			.supports_credentials()
 			.allowed_methods(vec!["GET", "POST", "HEAD", "PUT", "DELETE"])
 			.allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
 			.allowed_header(http::header::CONTENT_TYPE)
@@ -64,7 +68,7 @@ async fn main() -> std::io::Result<()> {
 			.configure(handlers::configure_app)
 			.app_data(web::Data::new(db_pool.clone()))
 	})
-	.bind(("0.0.0.0", 8080))?
+	.bind(("0.0.0.0", port))?
 	.run()
 	.await
 }

@@ -7,12 +7,10 @@ use crate::services::{CategoryError, CategoryResult};
 use deadpool_postgres::Client;
 
 pub async fn get_category_list(client: &Client) -> CategoryResult<Vec<Category>> {
-	let result = query_all_categories(client).await;
-	if result.is_empty() {
-		Err(CategoryError::CategoryNotFound)
-	} else {
-		Ok(result)
-	}
+	query_all_categories(client).await.map_err(|error| {
+		crate::dao::log_db_error("SELECT categories FROM public.category", &error);
+		CategoryError::CategoryQueryFailed
+	})
 }
 
 pub async fn get_category(client: &Client, id: i64) -> CategoryResult<Category> {

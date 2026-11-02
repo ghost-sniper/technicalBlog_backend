@@ -27,7 +27,7 @@ pub async fn get_article_by_id(client: &Client, id: i32) -> Option<Article> {
 	deleted,
 	prospectus
 from
-	poetize.article
+	public.article
 where
 	id = $1",
 		&[&id],
@@ -38,7 +38,7 @@ where
 pub async fn insert_article(client: &Client, article: &Article) -> Option<u64> {
 	let result = client
 		.execute(
-			"INSERT INTO poetize.article (user_id, sort_id, article_title, article_content, article_cover) VALUES ($1, $2, $3, $4, $5)",
+			"INSERT INTO public.article (user_id, sort_id, article_title, article_content, article_cover) VALUES ($1, $2, $3, $4, $5)",
 			&[
 				&article.user_id,
 				&article.sort_id,
@@ -77,7 +77,7 @@ pub async fn get_all_articles(client: &Client) -> Vec<Article> {
 	deleted,
 	prospectus
 from
-	poetize.article",
+	public.article",
 		&[],
 		Article
 	)
@@ -86,7 +86,7 @@ from
 pub async fn get_articles_short_info(client: &Client) -> Vec<ShortArticle> {
 	select_rows!(
 		client,
-		"SELECT id, article_title,update_time,prospectus from poetize.article",
+		"SELECT id, article_title,update_time,prospectus from public.article",
 		&[],
 		ShortArticle
 	)

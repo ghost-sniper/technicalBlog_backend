@@ -1,4 +1,5 @@
 pub mod article;
+pub mod article_tags;
 pub mod category;
 pub mod sort;
 pub mod tag;
@@ -29,6 +30,8 @@ pub type TagResult<T> = Result<T, TagError>;
 
 #[derive(Debug, Error, Clone)]
 pub enum CategoryError {
+	#[error("查询分类失败，请稍后重试")]
+	CategoryQueryFailed,
 	#[error("未查询到分类")]
 	CategoryNotFound,
 	#[error("新增分类失败")]

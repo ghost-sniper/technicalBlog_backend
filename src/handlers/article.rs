@@ -20,11 +20,23 @@ pub async fn get_article(
 			message: None::<String>,
 		})
 	} else {
-		HttpResponse::Ok().json(UnifiedResponse {
-			status: "success".to_string(),
-			code: 200,
-			message: rows,
-		})
+		let article = rows.unwrap();
+		let tags =
+			match crate::services::article_tags::for_article(&**client, article.id)
+				.await
+			{
+				Ok(tags) => tags,
+				Err(error) => {
+					log::error!("文章标签查询失败: {error}");
+					return HttpResponse::InternalServerError()
+						.json(serde_json::json!({"message":"文章标签查询失败"}));
+				}
+			};
+		let mut article = serde_json::to_value(article).unwrap();
+		article["tags"] = serde_json::to_value(tags).unwrap();
+		HttpResponse::Ok().json(
+			serde_json::json!({"status":"success","code":200,"message":article}),
+		)
 	}
 }
 
