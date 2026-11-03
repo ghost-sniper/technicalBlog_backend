@@ -86,7 +86,10 @@ from
 pub async fn get_articles_short_info(client: &Client) -> Vec<ShortArticle> {
 	select_rows!(
 		client,
-		"SELECT id, article_title,update_time,prospectus from public.article",
+		"SELECT a.id, a.article_title, a.update_time, a.prospectus,
+			ARRAY(SELECT link.tag_id FROM public.article_tags link
+				WHERE link.article_id = a.id ORDER BY link.tag_id) AS tag_ids
+		FROM public.article a",
 		&[],
 		ShortArticle
 	)

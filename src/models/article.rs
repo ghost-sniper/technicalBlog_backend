@@ -30,6 +30,7 @@ pub struct Article {
 #[derive(Deserialize, Debug, Serialize, Clone, TryFromRow)]
 pub struct ShortArticle {
 	pub id: i32,
+	pub tag_ids: Vec<i64>,
 	pub article_title: String,
 	pub update_time: Option<NaiveDateTime>,
 	pub prospectus: Option<String>,

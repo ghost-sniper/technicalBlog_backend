@@ -6,6 +6,7 @@ use crate::handlers::user::logout_user;
 
 pub mod article;
 pub mod article_edit;
+mod article_image;
 pub mod category;
 pub mod key_pair;
 pub mod presentation;
@@ -44,6 +45,12 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
 				.route(web::get().to(article_edit::get_editable))
 				.route(web::put().to(article_edit::save)),
 		)
+		.service(
+			web::resource("/article/{id}/images")
+				.app_data(web::PayloadConfig::new(article_image::MAX_IMAGE_BYTES))
+				.route(web::post().to(article_image::upload)),
+		)
+		.route("/article-images/{id}", web::get().to(article_image::read))
 		.route("/article/{id}", web::get().to(article::get_article))
 		.route(
 			"/list/article",
