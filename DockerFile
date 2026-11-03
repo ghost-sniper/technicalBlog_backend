@@ -1,8 +1,9 @@
 FROM rust:1.97 as builder
 LABEL maintainer="clayfs@163.com"
 WORKDIR /app
-COPY . .
-RUN cargo build --release
+COPY Cargo.toml Cargo.lock ./
+COPY src/ ./src/
+RUN cargo build --locked --release
 
 FROM debian:bookworm-slim
 WORKDIR /app

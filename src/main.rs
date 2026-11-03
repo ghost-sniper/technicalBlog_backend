@@ -1,4 +1,3 @@
-use crate::db::create_database_pool;
 use actix_cors::Cors;
 use actix_identity::IdentityMiddleware;
 use actix_session::SessionMiddleware;
@@ -21,12 +20,7 @@ pub mod utils;
 async fn main() -> std::io::Result<()> {
 	init_logger();
 	dotenv().ok();
-	let database_host = std::env::var("DATABASE_HOST").unwrap_or("127.0.0.1".to_string());
-	let database_port = std::env::var("DATABASE_PORT").unwrap_or("5432".to_string());
-	let database_user = std::env::var("DATABASE_USER").unwrap_or("zion_app".to_string());
-	let database_name = std::env::var("DATABASE_NAME").unwrap_or("zion".to_string());
-	let database_user_passwd = std::env::var("DATABASE_USER_PASSWORD").unwrap_or("".to_string());
-	let db_pool = create_database_pool(database_host,database_port,database_name,database_user,database_user_passwd);
+	let db_pool = db::pool_from_env().map_err(std::io::Error::other)?;
 	let redis_url = std::env::var("REDIS_URL")
 		.unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string());
 	let redis_store = RedisSessionStore::new(redis_url)
