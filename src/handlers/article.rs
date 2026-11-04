@@ -1,8 +1,6 @@
 use crate::dao::article::get_article_by_id;
 use crate::handlers::get_db_client;
 use crate::handlers::presentation::UnifiedResponse;
-use crate::handlers::presentation::article::ShortArticleResponse;
-use crate::services::article::get_short_article_list;
 use actix_web::{HttpResponse, web};
 use deadpool_postgres::Pool;
 
@@ -40,24 +38,64 @@ pub async fn get_article(
 	}
 }
 
-pub async fn get_all_short_article(pool: web::Data<Pool>) -> HttpResponse {
-	let client = get_db_client(pool).await.unwrap();
-	let rows = get_short_article_list(&client).await;
+#[derive(serde::Deserialize)]
+pub struct ArticleListQuery {
+	#[serde(default = "first_page")]
+	page: i64,
+	#[serde(default = "default_page_size")]
+	page_size: i64,
+	#[serde(default)]
+	q: String,
+	tag_id: Option<i64>,
+}
+fn first_page() -> i64 {
+	1
+}
+fn default_page_size() -> i64 {
+	10
+}
 
-	if rows.is_err() {
-		HttpResponse::Ok().json(UnifiedResponse {
-			status: rows.err().unwrap().to_string(),
-			code: 1002,
-			message: None::<String>,
-		})
-	} else {
-		HttpResponse::Ok().json(UnifiedResponse {
-			status: "success".to_string(),
-			code: 200,
-			message: Some(ShortArticleResponse {
-				article_list: rows.clone().unwrap(),
-				count: rows.ok().unwrap().len() as i32,
-			}),
-		})
+pub async fn get_all_short_article(
+	pool: web::Data<Pool>,
+	query: web::Query<ArticleListQuery>,
+) -> HttpResponse {
+	if query.page < 1
+		|| !(1..=100).contains(&query.page_size)
+		|| query
+			.page
+			.checked_sub(1)
+			.and_then(|page| page.checked_mul(query.page_size))
+			.is_none()
+		|| query.q.chars().count() > 255
+		|| query.tag_id.is_some_and(|id| id < 1)
+	{
+		return HttpResponse::BadRequest().json(serde_json::json!({
+            "code":40001,"message":"分页参数无效，页码须大于 0，每页 1 至 100 篇，关键词最多 255 字"
+        }));
 	}
+	let result = async {
+		let client = pool.get().await?;
+		crate::dao::article::get_article_page(
+			&client,
+			query.page,
+			query.page_size,
+			query.q.trim(),
+			query.tag_id,
+		)
+		.await
+	}
+	.await;
+	match result {
+        Ok((total, articles)) => HttpResponse::Ok().json(serde_json::json!({
+            "status":"success","code":200,"message":{
+                "article_list":articles,"count":total,"page":query.page,"page_size":query.page_size
+            }
+        })),
+        Err(error) => {
+            log::error!("文章列表查询失败: {error}");
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "code":50001,"message":"文章列表暂时不可用，请稍后重试"
+            }))
+        }
+    }
 }
