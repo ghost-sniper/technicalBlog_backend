@@ -1,4 +1,7 @@
-use crate::{models::article::{Article, ShortArticle}, select_row, select_rows};
+use crate::{
+	models::article::{Article, ShortArticle},
+	select_row, select_rows,
+};
 use deadpool_postgres::Client;
 use std::option::Option;
 
@@ -101,14 +104,21 @@ pub async fn get_article_page(
 	page_size: i64,
 	keyword: &str,
 	tag_id: Option<i64>,
+	viewer_id: Option<i32>,
 ) -> anyhow::Result<(i64, Vec<ShortArticle>)> {
 	let offset = (page - 1) * page_size;
-	let pattern = format!("%{}%", keyword.replace('!', "!!").replace('%', "!%").replace('_', "!_"));
+	let pattern = format!(
+		"%{}%",
+		keyword
+			.replace('!', "!!")
+			.replace('%', "!%")
+			.replace('_', "!_")
+	);
 	let row = client.query_one(
 		"WITH matched AS NOT MATERIALIZED (
 			SELECT a.id, a.update_time
 			FROM public.article a
-			WHERE a.deleted=0
+			WHERE public.can_read_article(a,$5)
 				AND ($1 = '%%' OR lower(a.article_title || ' ' || coalesce(a.prospectus,'')
 					|| ' ' || coalesce(a.article_content,'')) LIKE lower($1) ESCAPE '!')
 				AND ($2::bigint IS NULL OR EXISTS (
@@ -125,7 +135,10 @@ pub async fn get_article_page(
 		SELECT (SELECT count(*) FROM matched) AS total,
 			coalesce((SELECT jsonb_agg(p ORDER BY p.update_time DESC NULLS LAST, p.id DESC)
 				FROM page_rows p), '[]'::jsonb) AS articles",
-		&[&pattern, &tag_id, &page_size, &offset],
+		&[&pattern, &tag_id, &page_size, &offset, &viewer_id],
 	).await?;
-	Ok((row.try_get("total")?, serde_json::from_value(row.try_get("articles")?)?))
+	Ok((
+		row.try_get("total")?,
+		serde_json::from_value(row.try_get("articles")?)?,
+	))
 }

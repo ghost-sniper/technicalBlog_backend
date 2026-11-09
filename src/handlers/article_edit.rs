@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 pub struct EditableArticle {
+	pub view_type: String,
+	pub comment_status: i16,
 	#[serde(default)]
 	pub tags: Vec<crate::models::tag::Tag>,
 	pub id: i32,
@@ -18,6 +20,8 @@ impl TryFrom<&tokio_postgres::Row> for EditableArticle {
 	type Error = tokio_postgres::Error;
 	fn try_from(row: &tokio_postgres::Row) -> Result<Self, Self::Error> {
 		Ok(Self {
+			view_type: row.try_get("view_type")?,
+			comment_status: row.try_get("comment_status")?,
 			id: row.try_get("id")?,
 			article_title: row.try_get("article_title")?,
 			article_content: row.try_get("article_content")?,
@@ -31,6 +35,8 @@ impl TryFrom<&tokio_postgres::Row> for EditableArticle {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EditRequest {
+	pub view_type: Option<String>,
+	pub comment_status: Option<i16>,
 	#[serde(default)]
 	pub tags: Option<Vec<String>>,
 	pub article_title: String,
@@ -79,9 +85,14 @@ pub(super) async fn actor(
 }
 fn validate(request: &EditRequest) -> bool {
 	request
-		.tags
-		.as_ref()
-		.is_none_or(|names| crate::services::article_tags::valid_names(names))
+		.view_type
+		.as_deref()
+		.is_none_or(|v| matches!(v, "public" | "authenticated" | "private"))
+		&& request.comment_status.is_none_or(|v| v == 0 || v == 1)
+		&& request
+			.tags
+			.as_ref()
+			.is_none_or(|names| crate::services::article_tags::valid_names(names))
 		&& !request.article_title.trim().is_empty()
 		&& request.article_title.chars().count() <= 255
 		&& !request.article_content.trim().is_empty()
@@ -100,7 +111,7 @@ pub async fn get_editable(
 		Ok(value) => value,
 		Err(response) => return response,
 	};
-	match client.query_opt("SELECT id,user_id,article_title,article_content,prospectus,update_time FROM public.article WHERE id=$1 AND deleted=0",&[&id.into_inner()]).await {
+	match client.query_opt("SELECT id,user_id,article_title,article_content,prospectus,update_time,view_type,comment_status FROM public.article WHERE id=$1 AND deleted=0",&[&id.into_inner()]).await {
         Ok(Some(row)) if row.get::<_,i32>("user_id") == actor => match EditableArticle::try_from(&row){Ok(mut article)=>{ article.tags=match crate::services::article_tags::for_article(&**client,article.id).await {Ok(tags)=>tags,Err(error)=>return internal(error)}; HttpResponse::Ok().json(article) },Err(error)=>internal(error)},
         Ok(Some(_))=>failure(StatusCode::FORBIDDEN,40302,"你没有这篇文章的编辑权限"),
         Ok(None)=>failure(StatusCode::NOT_FOUND,40401,"文章不存在或已删除"),
@@ -121,7 +132,7 @@ pub async fn save(
 		return failure(
 			StatusCode::BAD_REQUEST,
 			40001,
-			"请填写标题和 Markdown 正文；标题、摘要最多 255 字，正文最多 1.5 MB",
+			"请检查访问范围和评论开关，填写标题和 Markdown 正文；标题、摘要最多 255 字，正文最多 1.5 MB",
 		);
 	}
 	let tx = match client.transaction().await {
@@ -165,7 +176,7 @@ async fn persist(
 		));
 	}
 	let editor = actor.to_string();
-	let row=tx.query_one("UPDATE public.article SET article_title=$1,article_content=$2,prospectus=$3,update_time=clock_timestamp(),update_by=$4 WHERE id=$5 AND user_id=$6 AND deleted=0 RETURNING id,article_title,article_content,prospectus,update_time",&[&request.article_title.trim(),&request.article_content,&request.prospectus,&editor,&id,&actor]).await.map_err(internal)?;
+	let row=tx.query_one("UPDATE public.article SET article_title=$1,article_content=$2,prospectus=$3,update_time=clock_timestamp(),update_by=$4,view_type=COALESCE($7,view_type),comment_status=COALESCE($8,comment_status) WHERE id=$5 AND user_id=$6 AND deleted=0 RETURNING id,article_title,article_content,prospectus,update_time,view_type,comment_status",&[&request.article_title.trim(),&request.article_content,&request.prospectus,&editor,&id,&actor,&request.view_type,&request.comment_status]).await.map_err(internal)?;
 	let mut article = EditableArticle::try_from(&row).map_err(internal)?;
 	if let Some(names) = &request.tags {
 		article.tags = crate::services::article_tags::resolve(tx, names)
@@ -198,6 +209,8 @@ mod tests {
 	#[test]
 	fn rejects_empty_and_oversized_edits() {
 		let mut request = EditRequest {
+			view_type: None,
+			comment_status: None,
 			tags: None,
 			article_title: "标题".into(),
 			article_content: "# Markdown".into(),
@@ -257,6 +270,8 @@ mod live_tests {
 		let row=tx.query_one("INSERT INTO public.article(user_id,sort_id,label_id,article_title,article_content) VALUES($1,0,0,'test','# original') RETURNING id,update_time",&[&users[0]]).await.unwrap();
 		let id: i32 = row.get(0);
 		let request = EditRequest {
+			view_type: None,
+			comment_status: None,
 			tags: Some(vec!["JavaScript".into(), "JavaScrip".into()]),
 			article_title: "Updated title".into(),
 			article_content: "# Markdown\n\n| A | B |\n|---|---|\n| 1 | 2 |\n"
@@ -283,6 +298,21 @@ mod live_tests {
 			1
 		);
 		assert_eq!(updated.article_title, request.article_title);
+		assert_eq!(updated.view_type, "public");
+		assert_eq!(updated.comment_status, 1);
+		let settings = EditRequest {
+			view_type: Some("authenticated".into()),
+			comment_status: Some(0),
+			tags: None,
+			article_title: updated.article_title.clone(),
+			article_content: updated.article_content.clone(),
+			prospectus: updated.prospectus.clone(),
+			expected_update_time: updated.update_time,
+		};
+		let configured = persist(&tx, id, users[0], &settings).await.ok().unwrap();
+		assert_eq!(configured.view_type, "authenticated");
+		assert_eq!(configured.comment_status, 0);
+
 		assert_eq!(
 			persist(&tx, id, users[0], &request)
 				.await

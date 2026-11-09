@@ -5,11 +5,14 @@ use deadpool_postgres::Pool;
 use crate::handlers::user::logout_user;
 
 pub mod article;
+pub mod article_access;
+pub mod article_comments;
 pub mod article_edit;
 mod article_image;
 pub mod category;
 pub mod key_pair;
 pub mod presentation;
+pub mod profile_edit;
 pub mod sort;
 pub mod tag;
 pub mod tag_admin;
@@ -38,7 +41,11 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
 				.route(web::post().to(user::login_user)),
 		)
 		.route("/logout", web::post().to(logout_user))
-		.route("/user/me", web::get().to(user::update_user))
+		.service(
+			web::resource("/user/me")
+				.route(web::get().to(user::update_user))
+				.route(web::put().to(profile_edit::save)),
+		)
 		.service(
 			web::resource("/article/{id}/edit")
 				.app_data(web::JsonConfig::default().limit(2_000_000))
@@ -51,6 +58,20 @@ pub fn configure_app(cfg: &mut web::ServiceConfig) {
 				.route(web::post().to(article_image::upload)),
 		)
 		.route("/article-images/{id}", web::get().to(article_image::read))
+		.service(
+			web::resource("/article/{id}/comments")
+				.app_data(web::JsonConfig::default().limit(16_384))
+				.route(web::get().to(article_comments::list))
+				.route(web::post().to(article_comments::create)),
+		)
+		.route(
+			"/article/{id}/comments/{root_id}/replies",
+			web::get().to(article_comments::replies),
+		)
+		.route(
+			"/article/{id}/comments/{comment_id}",
+			web::delete().to(article_comments::delete),
+		)
 		.route("/article/{id}", web::get().to(article::get_article))
 		.route(
 			"/list/article",

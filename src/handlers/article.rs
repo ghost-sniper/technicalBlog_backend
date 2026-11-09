@@ -1,40 +1,45 @@
-use crate::dao::article::get_article_by_id;
-use crate::handlers::get_db_client;
-use crate::handlers::presentation::UnifiedResponse;
+use super::article_access::{internal, readable, viewer};
+use actix_identity::Identity;
 use actix_web::{HttpResponse, web};
 use deadpool_postgres::Pool;
 
 pub async fn get_article(
+	identity: Option<Identity>,
 	pool: web::Data<Pool>,
-	id: web::Path<String>,
+	id: web::Path<i32>,
 ) -> HttpResponse {
-	let client = get_db_client(pool).await.unwrap();
-	let article_id = id.into_inner();
-	let rows = get_article_by_id(&client, article_id.parse::<i32>().unwrap()).await;
-	if rows.is_none() {
-		HttpResponse::Ok().json(UnifiedResponse {
-			status: "success".to_string(),
-			code: 200,
-			message: None::<String>,
-		})
-	} else {
-		let article = rows.unwrap();
-		let tags =
-			match crate::services::article_tags::for_article(&**client, article.id)
-				.await
-			{
-				Ok(tags) => tags,
-				Err(error) => {
-					log::error!("文章标签查询失败: {error}");
-					return HttpResponse::InternalServerError()
-						.json(serde_json::json!({"message":"文章标签查询失败"}));
-				}
-			};
-		let mut article = serde_json::to_value(article).unwrap();
-		article["tags"] = serde_json::to_value(tags).unwrap();
-		HttpResponse::Ok().json(
-			serde_json::json!({"status":"success","code":200,"message":article}),
-		)
+	let mut client = match pool.get().await {
+		Ok(c) => c,
+		Err(e) => return internal(e),
+	};
+	let tx = match client.transaction().await {
+		Ok(tx) => tx,
+		Err(e) => return internal(e),
+	};
+	if let Err(e) = readable(&*tx, *id, viewer(identity), false).await {
+		return e;
+	}
+	let result = async {
+		let row = tx
+			.query_one(
+				"SELECT to_jsonb(a) - 'view_value' AS article FROM public.article a WHERE id=$1",
+				&[&*id],
+			)
+			.await?;
+		let mut article: serde_json::Value = row.get("article");
+		article["tags"] = serde_json::to_value(
+			crate::services::article_tags::for_article(&*tx, *id).await?,
+		)?;
+		Ok::<_, anyhow::Error>(article)
+	}
+	.await;
+	match result {
+		Ok(article) => HttpResponse::Ok()
+			.insert_header(("Cache-Control", "private, no-store"))
+			.json(
+				serde_json::json!({"status":"success","code":200,"message":article}),
+			),
+		Err(e) => internal(e),
 	}
 }
 
@@ -56,6 +61,7 @@ fn default_page_size() -> i64 {
 }
 
 pub async fn get_all_short_article(
+	identity: Option<Identity>,
 	pool: web::Data<Pool>,
 	query: web::Query<ArticleListQuery>,
 ) -> HttpResponse {
@@ -81,12 +87,13 @@ pub async fn get_all_short_article(
 			query.page_size,
 			query.q.trim(),
 			query.tag_id,
+			viewer(identity),
 		)
 		.await
 	}
 	.await;
 	match result {
-        Ok((total, articles)) => HttpResponse::Ok().json(serde_json::json!({
+        Ok((total, articles)) => HttpResponse::Ok().insert_header(("Cache-Control", "private, no-store")).json(serde_json::json!({
             "status":"success","code":200,"message":{
                 "article_list":articles,"count":total,"page":query.page,"page_size":query.page_size
             }

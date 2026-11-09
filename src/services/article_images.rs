@@ -54,7 +54,7 @@ impl ArticleImageStorage for PostgresArticleImages<'_> {
 			.query_opt(
 				"SELECT i.content_type, i.content FROM public.article_images i
 			 JOIN public.article a ON a.id = i.article_id
-			 WHERE i.id = $1 AND a.deleted = 0 AND (
+			 WHERE i.id = $1 AND public.can_read_article(a,$2) AND (
 			   strpos(a.article_content, '](/api/article-images/' || i.id::text || ')') > 0
 			   OR EXISTS (
 			     SELECT 1 FROM public.user u WHERE u.id = a.user_id AND u.id = $2
